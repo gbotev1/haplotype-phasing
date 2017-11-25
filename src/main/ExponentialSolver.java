@@ -1,6 +1,7 @@
 package src.main;
 
 import java.util.Set;
+import java.util.ArrayList;
 import java.util.HashSet;
 
 import com.google.common.collect.Sets;
@@ -10,25 +11,25 @@ import com.google.common.collect.Sets;
  * 
  * @author gbotev
  */
-public class MECExponentialSolver {
+public class ExponentialSolver {
 	
 	private char[][] SNPMatrix;
 	
-	public MECExponentialSolver(char[][] SNPMatrix) {
+	public ExponentialSolver(char[][] SNPMatrix) {
 		this.SNPMatrix = SNPMatrix;
 	}
 	
 	/**
 	 * This method finds the best-guess haplotypes based on MEC.
 	 * 
-	 * Suggestions for improvement: Do not hold entire power set in memory; Iterate one at a time
-	 * @return 
+	 * @return The best-guess haplotype.
 	 */
 	public Haplotype solve() {
 		Set<String> fragments = generateSetOfFragments();
 		Set<Set<String>> powerSetFragments = Sets.powerSet(fragments);
 		// Keep track of the best fragment
 		Haplotype bestGuess = null;
+		// Upper-bound for MEC score
 		int minMEC = SNPMatrix[0].length * SNPMatrix.length;
 		for (Set<String> fragment : powerSetFragments) {
 			// Fragment and fragmentComplement are the haplotype split we are considering
@@ -39,7 +40,7 @@ public class MECExponentialSolver {
 			if (currGuess.MEC() < minMEC) {
 				bestGuess = currGuess;
 				minMEC = bestGuess.MEC();
-				bestGuess.setPartition(fragmentComplement);
+				bestGuess.setPartition(new ArrayList<String>(fragmentComplement));
 			}
 		}
 		return bestGuess;
@@ -100,6 +101,7 @@ public class MECExponentialSolver {
 						break;
 					case '0':
 						frequencies[i].increment0();
+						break;
 					default:
 						// All cases covered
 						break;
@@ -119,7 +121,7 @@ public class MECExponentialSolver {
 	 * @return The set of all fragments in the SNP matrix.
 	 */
 	private Set<String> generateSetOfFragments() {
-		Set<String> fragments = new HashSet<String>();
+		Set<String> fragments = new HashSet<String>(SNPMatrix.length);
 		for (int row = 0; row < SNPMatrix.length; row++) {
 			StringBuilder fragment = new StringBuilder();
 			for (int column = 0; column < SNPMatrix[0].length; column++) {

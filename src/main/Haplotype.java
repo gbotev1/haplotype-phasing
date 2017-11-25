@@ -1,6 +1,6 @@
 package src.main;
 
-import java.util.Set;
+import java.util.ArrayList;
 
 /**
  * This class captures the haplotype as a pair of strings.
@@ -12,7 +12,7 @@ public class Haplotype {
 	private String h1;
 	private String h2;
 	private int MEC;
-	private Set<String> partition;
+	private ArrayList<String> partition;
 	
 	public Haplotype(String h1, String h2, int MEC) {
 		this.h1 = h1;
@@ -20,11 +20,11 @@ public class Haplotype {
 		this.MEC = MEC;
 	}
 	
-	public Set<String> getPartition() {
+	public ArrayList<String> getPartition() {
 		return this.partition;
 	}
 	
-	public void setPartition(Set<String> partition) {
+	public void setPartition(ArrayList<String> partition) {
 		this.partition = partition;
 	}
 	
