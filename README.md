@@ -1,5 +1,5 @@
 # Haplotype Phasing
-A workspace for my current undergraduate research position at Schatz Lab at Johns Hopkins University.
+A workspace for my current undergraduate research at Schatz Lab at Johns Hopkins University.
 
 # Dependencies
 This project uses Google Guava 23.0, which is included in the repository so that you do not have to download it separately. The JAR used for this project was downloaded from <https://github.com/google/guava/wiki/Release23>.
