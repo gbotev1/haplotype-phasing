@@ -11,7 +11,7 @@ import com.google.common.collect.TreeMultimap;
 /**
  * This class implements the Fast Twister heuristic and should be interacted with via the solve() method.
  * 
- * @author gbotev
+ * @author Georgie Botev
  */
 public class FastTwister {
 
