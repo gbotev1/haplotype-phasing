@@ -6,20 +6,46 @@ import argparse
 import random,numpy,math
 
 def diploid(fragmentlength,height, width, gaprate, errorrate,k,frach0,out,outLong):
+	n_gaps = 0
+	n_errors = 0
 	haplotype = numpy.random.choice([0,1],width) #numpy.ndarray.tolist
 	if out != None: out = open(out,"w")
 	with open(args.matrixout,"w") as outLong:
 		outLong.write(str(height) + "\n" + str(width) + "\n")
 		if fragmentlength == None or int(fragmentlength) == width: #No gaps at the ends of fragments
 			for _ in xrange(int(height*fractionh0)): #h0
-				fragment = ["-" if random.random() < gaprate else str(haplotype[i]) if random.random() > errorrate else str(abs(1-haplotype[i])) for i in xrange(width)]
-				if args.shortfmt: out.write("0\t" + "".join(fragment) + "\n")
+				#fragment = ["-" if random.random() < gaprate else str(haplotype[i]) if random.random() > errorrate else str(abs(1-haplotype[i])) for i in xrange(width)]
+				
+				fragment = [haplotype[q] for q in xrange(width)] #ints
+				for f in xrange(len(fragment)):
+					if random.random() < gaprate:
+						fragment[f] = "-"
+						n_gaps += 1
+					elif random.random() < errorrate:
+						fragment[f] = str(abs(1-fragment[f]))
+						n_errors += 1
+					else:
+						fragment[f] = str(fragment[f])
+
+				if args.shortfmt: out.write("0\t" + "".join(fragment) + "\n") #strings
 				outLong.write("".join(fragment) + "\n")
 				
 
 			for _ in xrange(height-int(height*fractionh0)): #h1 = opposite of h0; change to < errorrate
-				fragment = ["-" if random.random() < gaprate else str(haplotype[i]) if random.random() < errorrate else str(abs(1-haplotype[i])) for i in xrange(width)]
-				if args.shortfmt: out.write("0\t" + "".join(fragment) + "\n")
+				#fragment = ["-" if random.random() < gaprate else str(haplotype[i]) if random.random() < errorrate else str(abs(1-haplotype[i])) for i in xrange(width)]
+				
+				fragment = [abs(1-haplotype[q]) for q in xrange(width)] #ints
+				for f in xrange(len(fragment)):
+					if random.random() < gaprate:
+						fragment[f] = "-"
+						n_gaps += 1
+					elif random.random() < errorrate:
+						fragment[f] = str(abs(1-fragment[f]))
+						n_errors += 1
+					else:
+						fragment[f] = str(fragment[f])
+
+				if args.shortfmt: out.write("0\t" + "".join(fragment) + "\n") #strings
 				outLong.write("".join(fragment) + "\n")
 
 		else:
@@ -47,18 +73,44 @@ def diploid(fragmentlength,height, width, gaprate, errorrate,k,frach0,out,outLon
 			H1 = startpoints[1::2]
 			for i in H0: #number of gaps to put in front
 				prefix = ["-" for _ in xrange(i)] 
-				fragment = [ "-" if random.random() < gaprate else str(haplotype[ch]) if random.random() > errorrate else str(abs(1-haplotype[ch])) for ch in xrange(i,i+fragmentlength)] 
+				#fragment = [ "-" if random.random() < gaprate else str(haplotype[ch]) if random.random() > errorrate else str(abs(1-haplotype[ch])) for ch in xrange(i,i+fragmentlength)] 
 				suffix = ["-" for _ in xrange(i+fragmentlength,width)]
+
+				fragment = [haplotype[q] for q in xrange(i,i+fragmentlength)] #ints
+				for f in xrange(len(fragment)):
+					if random.random() < gaprate:
+						fragment[f] = "-"
+						n_gaps += 1
+					elif random.random() < errorrate:
+						fragment[f] = str(abs(1-fragment[f]))
+						n_errors += 1
+					else:
+						fragment[f] = str(fragment[f])
+
 				if args.shortfmt: out.write(str(i) + "\t" + "".join(fragment) + "\n")
 				outLong.write("".join(prefix) + "".join(fragment) + "".join(suffix) + "\n")
 
 			for i in H1: #number of gaps to put in front
 				prefix = ["-" for _ in xrange(i)] 
-				fragment = [ "-" if random.random() < gaprate else str(haplotype[ch]) if random.random() < errorrate else str(abs(1-haplotype[ch])) for ch in xrange(i,i+fragmentlength)]  #h1 = opposite of h0; change to < errorrate
+				#fragment = [ "-" if random.random() < gaprate else str(haplotype[ch]) if random.random() < errorrate else str(abs(1-haplotype[ch])) for ch in xrange(i,i+fragmentlength)]  #h1 = opposite of h0; change to < errorrate
 				suffix = ["-" for _ in xrange(i+fragmentlength,width)]
+
+				fragment = [abs(1-haplotype[q]) for q in xrange(i,i+fragmentlength)] #ints
+				for f in xrange(len(fragment)):
+					if random.random() < gaprate:
+						fragment[f] = "-"
+						n_gaps += 1
+					elif random.random() < errorrate:
+						fragment[f] = str(abs(1-fragment[f]))
+						n_errors += 1
+					else:
+						fragment[f] = str(fragment[f])
+
 				if args.shortfmt: out.write(str(i) + "\t" + "".join(fragment) + "\n")
 				outLong.write("".join(prefix) + "".join(fragment) + "".join(suffix) + "\n")
 		if out != None: out.close()
+		print str(n_gaps) + " gaps"
+		print str(n_errors) + " errors"
 		return [haplotype]
 
 def kploid(fragmentlength,height, width, gaprate, errorrate,k,frach0,out,outLong):

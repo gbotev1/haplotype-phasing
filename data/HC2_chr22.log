@@ -1,0 +1,23 @@
+time HAPCUT2 --new_format 1 --fragments chr22_PLAT_linkedfragment_file.txt --vcf VCFs_PLAT/chr22_abbr.vcf --output chr22.hap
+
+IMPORTANT: Note that input for --threshold option and confidence scores in output have changed to Phred-scaled quality values.
+ See README at https://github.com/vibansal/HapCUT2 for more information.
+
+
+
+[2017:12:08 18:52:29] fragment file: chr22_PLAT_linkedfragment_file.txt
+[2017:12:08 18:52:29] variantfile (VCF format):VCFs_PLAT/chr22_abbr.vcf
+[2017:12:08 18:52:29] haplotypes will be output to file: chr22.hap
+[2017:12:08 18:52:29] solution convergence cutoff: 5
+[2017:12:08 18:52:29] QVoffset: 33
+
+[2017:12:08 18:52:29] Calling Max-Likelihood-Cut based haplotype assembly algorithm
+[2017:12:08 18:52:29] read 31096 variants from VCFs_PLAT/chr22_abbr.vcf file
+Number of non-trivial connected components 8 max-Degree 733 connected variants 31083 coverage-per-variant 19.409516
+[2017:12:08 18:52:29] fragments 94388 snps 31096 component(blocks) 8
+[2017:12:08 18:52:29] processed fragment file and variant file: fragments 94388 variants 31096
+[2017:12:08 18:58:31] OUTPUTTING PRUNED HAPLOTYPE ASSEMBLY TO FILE chr22.hap
+
+real    6m2.620s
+user    6m2.729s
+sys     0m0.133s
