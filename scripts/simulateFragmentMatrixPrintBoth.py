@@ -60,18 +60,18 @@ def diploid(fragmentlength,height, width, gaprate, errorrate,k,frach0,out,outLon
 			remaining = height - persite * end
 			#assert remaining < end
 			if remaining > 0:
-				step = end/remaining
-				startpoints += range(0,end,step)[:remaining]
-
-				if len(startpoints) != remaining:
-				#if 1.0*end/remaining < 2: #choose places where fragments won't start instead of places where they will
+				if 1.0*end/remaining < 2: #choose places where fragments won't start instead of places where they will
 					step = end/(end-remaining) #number of places to choose
 					A = range(0,end,step)
 					startpoints += [i for i in xrange(end) if i not in A][:remaining] #"complement" of the sequence 
-				#else: #choose places where fragments will start
-
+				else: #choose places where fragments will start
+					step = end/remaining
+					startpoints += range(0,end,step)[:remaining]
 			#assert len(startpoints) == height == remaining + persite * end
 			random.shuffle(startpoints)
+			if len(startpoints) < remaining: 
+				for k in xrange(remaining-len(startpoints)):
+					startpoints.append(k) 
 			H0 = startpoints[0::2]
 			H1 = startpoints[1::2]
 			for i in H0: #number of gaps to put in front
