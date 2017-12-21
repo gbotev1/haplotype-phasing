@@ -13,24 +13,32 @@ for line in sys.stdin:
 	blocks[-1].append(H[int(L[0])-1] == L[1])
 
 
-mismatch_total = 0
 switch_total = 0
-for b in blocks:
-	mismatch = 0
-	switch = 0
-	if len(b) < 2:
-		continue
-	if b[0] != b[1]:
-		mismatch += 1
-	for i in xrange(2,len(b)):
-		if b[i] != b[i-1]:
-			if b[i] == b[i-2]:
-				mismatch += 1
-			else: #b[i] != b[i-2]
-				switch += 1
-	print len(b),mismatch,switch
-	mismatch_total += mismatch
-	switch_total += switch	
+flip_total = 0
 
-print "Mismatch:", str(mismatch_total)
-print "Switch:", str(switch_total)
+for b in blocks:
+	if len(b) < 2: continue
+	# Initialize comparison string
+	xorHap = ""
+	switch = 0
+	flip = 0
+
+	# Process comparison string
+	i = 0
+	while i < len(b):
+		if b[i] == 1:
+			flag = False
+			while i < len(b) - 1 and b[i] == b[i + 1]:
+				i += 1
+				flag = True
+			if flag:
+				switch += 1
+			else:
+				flip += 1
+		i += 1
+	print flip,switch,len(b)
+	switch_total += switch
+	flip_total += flip
+
+print "Switch:", str(switch_total)	
+print "Flip:", str(flip_total)
