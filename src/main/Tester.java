@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Scanner;
 
 import com.google.common.collect.TreeMultimap;
@@ -22,16 +23,46 @@ public class Tester {
 	private static TreeMultimap<Integer, String> fragments;
 
 	public static void main(String[] args) {
-		//ReadSequencesFromFile("/Users/gbotev/Documents/GitHub Repositories/haplotype-phasing/scripts/mat.txt");
-		//ProcessSNPMatrix();
-		ReadNewSequencesFromFile("/Users/gbotev/Documents/GitHub Repositories/haplotype-phasing/scripts/mat.txt");
+		ReadNewSequencesFromFile("/Users/gbotev/Documents/GitHub Repositories/haplotype-phasing/scripts/mat.txt-short");
 		ProcessShortFragMatrix();
+		/*
+		ArrayList<Integer> regular = new ArrayList<Integer>(50);
+		ArrayList<Integer> encoded = new ArrayList<Integer>(50);
+		for (int i = 1; i <= 50; i++) {
+			try {
+				ReadSequencesFromFile(String.format("/Users/gbotev/Documents/GitHub Repositories/haplotype-phasing/scripts/mat-%d.txt", i));
+				regular.add(ProcessSNPMatrix());
+			} catch (Exception e) {
+				// Do nothing
+			}
+			try {
+				ReadNewSequencesFromFile(String.format("/Users/gbotev/Documents/GitHub Repositories/haplotype-phasing/scripts/mat-%d.txt-short", i));
+				encoded.add(ProcessShortFragMatrix());
+			} catch (Exception e) {
+				// Do nothing
+			}
+		}
+		double sum = 0;
+		for (int i = 0; i < regular.size(); i++) {
+			int a = regular.get(i);
+			int b = encoded.get(i);
+			// Encoded should always be greater than or equal to regular
+			int diff = b - a;
+			sum += diff;
+		}
+		if (sum == 0) {
+			System.out.println(0);
+			return;
+		}
+		double mean = sum / ((double) regular.size());
+		System.out.println(mean);
+		*/
 	}
 
 	/**
 	 * This method determines the best-guess haplotype of the given SNP matrix under the MEC objective using a rudimentary exponential solver.
 	 */
-	private static void ProcessSNPMatrix() {
+	private static int ProcessSNPMatrix() {
 		ExponentialSolver exponentialSolver = new ExponentialSolver(SNPMatrix);
 		long startTime = System.nanoTime();
 		Haplotype haplotype = exponentialSolver.solve();
@@ -44,20 +75,22 @@ public class Tester {
 			System.out.println(s.toString());
 		}
 		*/
+		return haplotype.MEC();
 	}
 	
 	/**
 	 * This method determines the best-guess haplotype of the given SNP matrix under the MEC objective using the Fast Twister heuristic.
 	 */
-	private static void ProcessShortFragMatrix() {
+	private static int ProcessShortFragMatrix() {
 		FastTwister fastSolver = new FastTwister(fragments);
 		long startTime = System.nanoTime();
-		Haplotype haplotype = fastSolver.solve();
+		Bundle haplotype = fastSolver.solve();
 		long endTime = System.nanoTime();
 		// Calculate the duration in microseconds
 		long duration = (endTime - startTime) / 1000;
-		//System.out.println("Fast Twister Solver\nH1: " + haplotype.h1() + "\nH2: " + haplotype.h2() + "\nMEC: " + haplotype.MEC() + "\nTime: " + duration + " µs");
-		System.out.println("Fast Twister Solver\nMEC: " + haplotype.MEC() + "\nTime: " + duration + " µs");
+		System.out.println("Fast Twister Solver\nHaplotype: " + haplotype.getHaplotype() + "\nMEC: " + haplotype.getMEC() + "\nTime: " + duration + " µs");
+		//System.out.println("Fast Twister Solver\nMEC: " + haplotype.MEC() + "\nTime: " + duration + " µs");
+		return haplotype.getMEC();
 	}
 	
 	private static void ReadNewSequencesFromFile(String fileName) {
