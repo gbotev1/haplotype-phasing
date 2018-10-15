@@ -1,11 +1,10 @@
 #Charlotte Darby cdarby@jhu.edu
-#updated 09-12-18
+#updated 10-15-18
 
 import argparse
 import random
 import numpy
 import bisect
-import sys
 
 def generateHaplotypes(k, numsnp, snprate, fraglengthmax):
 	snp_loc = [fraglengthmax-1] #coordinates are 0-indexed
@@ -19,18 +18,18 @@ def generateHaplotypes(k, numsnp, snprate, fraglengthmax):
 		haplotypes.append(h) #generate a random haplotype
 		haplotypes.append([abs(x-1) for x in h]) #and complement
 	else:
-		for _ in xrange(k):
+		for _ in range(k):
 			haplotypes.append([])
-		for _ in xrange(numsnp): #for each site, there is at least one 0 and at least one 1, but others are randomly selected
+		for _ in range(numsnp): #for each site, there is at least one 0 and at least one 1, but others are randomly selected
 			alleles = numpy.ndarray.tolist(numpy.random.choice([0,1],k-2)) + [0,1]
 			random.shuffle(alleles)
-			for i in xrange(len(haplotypes)):
+			for i in range(len(haplotypes)):
 				haplotypes[i].append(alleles[i])
 
 	return (snp_loc, haplotypes)
 
 
-def generateFragments(snp_loc, haplotypes, nreads, k, distribution, out):
+def generateFragments(snp_loc, haplotypes, nreads, k, distribution, out, errorrate):
 	if distribution == "normal":
 		lengths = numpy.random.normal(loc=mean, scale=sd, size=nreads)
 	elif distribution == "lognormal":
@@ -46,11 +45,14 @@ def generateFragments(snp_loc, haplotypes, nreads, k, distribution, out):
 			if end_snp > start_snp + 1: #covers at least 2 SNP
 				F.write(str(start_snp))
 				F.write("\t")
-				F.write("".join([str(x) for x in haplotypes[h][start_snp:end_snp]]))
+				if errorrate > 0:
+					F.write("".join([str(abs(1-x)) if random.random() < errorrate else str(x) for x in haplotypes[h][start_snp:end_snp]]))
+				else:
+					F.write("".join([str(x) for x in haplotypes[h][start_snp:end_snp]]))
 				F.write("\n")
 
 
-def generateFragmentsPaired(snp_loc, haplotypes, nreads, k, readlength, out):
+def generateFragmentsPaired(snp_loc, haplotypes, nreads, k, readlength, out, errorrate):
 	lengths = numpy.random.normal(loc=mean, scale=sd, size=nreads)
 	haps = numpy.random.choice(range(k), nreads)
 
@@ -75,7 +77,7 @@ def generateFragmentsPaired(snp_loc, haplotypes, nreads, k, readlength, out):
 			if len(f) > 1: 
 				F.write(str(first_snp))
 				F.write("\t")
-				F.write("".join([str(x) for x in f]))
+				F.write("".join([str(abs(1-x)) if random.random() < errorrate and x != "-" else str(x) for x in f ]))
 				F.write("\n")
 
 
@@ -126,10 +128,10 @@ if sd < 0:
 	print("Stdev must be nonnegative")
 	sys.exit()
 if k < 2:
-	print "k must be greater at least 2"
+	print("k must be greater at least 2")
 	sys.exit()
 if errorrate < 0.0 or errorrate > 1.0:
-	print "Error rate must be between 0 and 1"
+	print("Error rate must be between 0 and 1")
 	sys.exit()
 if args.paired and readlength <= 0:
 	print("Read length parameter must be positive")
@@ -147,9 +149,8 @@ with open(args.hapout,"w") as F:
 
 genome_len = snp_loc[-1] + 1
 nreads = int(genome_len * cov / 2 / mean)
-print(nreads)
 
 if args.paired:
-	generateFragmentsPaired(snp_loc, haplotypes, nreads, k, readlength, args.matrixout)
+	generateFragmentsPaired(snp_loc, haplotypes, nreads, k, readlength, args.matrixout, errorrate)
 else: 
-	generateFragments(snp_loc, haplotypes, nreads, k, args.distribution, args.matrixout)
+	generateFragments(snp_loc, haplotypes, nreads, k, args.distribution, args.matrixout, errorrate)

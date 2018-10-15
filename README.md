@@ -15,5 +15,5 @@ In order to run the parallel solver, follow the following steps:
 
 4. make
 
-5. make run args="[absolute-path-to-mat.txt] [k] [alpha] [beta] [seedLength] [numFragments] [prettyPrint]"
+5. make run args="[absolute-path-to-mat.txt] [k] [alpha] [beta] [seedLength] [fragmentLength] [prettyPrint]"
 	a. A recommended argument configuration would be [absolute-path-to-mat.txt] 4 2.0 1 3 10 false
