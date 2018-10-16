@@ -57,12 +57,12 @@ public class Fragment {
 		return this.fragment;
 	}
 	
-	public void prettyPrint() {
-		System.out.println(String.format("%d-(%d)->%s", this.startIndex, this.length, this.fragment));
+	public String prettyPrint() {
+		return String.format("%d-(%d)->%s", this.startIndex, this.length, this.fragment);
 	}
 	
-	public void print() {
-		System.out.println(String.format("%d\t%s", this.startIndex, this.fragment));
+	public String print() {
+		return String.format("%d\t%s", this.startIndex, this.fragment);
 	}
 	
 	@Override

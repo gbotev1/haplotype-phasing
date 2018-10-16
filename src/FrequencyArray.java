@@ -142,7 +142,7 @@ public class FrequencyArray {
 			Set<FrequencyArray> toRemoveFA = new HashSet<FrequencyArray>();
 			for (int j = 0; j < prevSize; j++) {
 				FrequencyArray fa = fas.get(j);
-				Set<Fragment> toRemoveFrag = new HashSet<Fragment>();
+				Set<Fragment> fragsToRemove = new HashSet<Fragment>();
 				for (Fragment f : fa.supportingFragments) {
 					String currFrag = f.toString();
 					for (int i = 0; i < f.length(); i++) {
@@ -151,18 +151,18 @@ public class FrequencyArray {
 						char currSNP = currFrag.charAt(i);
 						if (currSNP == '0') {
 							if (num0 <= num1) {
-								toRemoveFrag.add(f);
+								fragsToRemove.add(f);
 								break;
 							}
 						} else if (currSNP == '1') {
 							if (num1 <= num0) {
-								toRemoveFrag.add(f);
+								fragsToRemove.add(f);
 								break;
 							}
 						} // Else, currSNP == '-', so do nothing!
 					}
 				}
-				for (Fragment f : toRemoveFrag) {
+				for (Fragment f : fragsToRemove) {
 					counter++;
 					fa.removeFragment(f);
 				}
@@ -288,7 +288,7 @@ public class FrequencyArray {
 	 * @return A boolean indicating whether the merge was successful.
 	 */
 	public boolean merge(FrequencyArray fa) {
-		// If no commons tags are shared, and there is at least one common supporting fragment, then merge!
+		// If no common tags are shared, and there is at least one common supporting fragment, then merge!
 		if (Collections.disjoint(this.tags, fa.tags) && !Collections.disjoint(this.supportingFragments, fa.supportingFragments)) {
 			this.addFragment(fa.supportingFragments);
 			this.tags.addAll(fa.tags);

@@ -19,4 +19,4 @@ clean:
 	@$(RM) $(OBJECTPATH)
 
 run:
-	@$(JVM) $(CP) $(MAIN)
+	@$(JVM) $(CP) $(MAIN) $(args)
