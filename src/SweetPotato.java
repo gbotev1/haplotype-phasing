@@ -7,9 +7,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.PriorityBlockingQueue;
 
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Sets;
@@ -23,6 +25,7 @@ import com.google.common.collect.TreeMultiset;
  */
 public class SweetPotato {
 
+	private int numThreads = 16;
 	private int tag = 0;
 	private Set<Fragment> fragments;
 	private int numFragments;
@@ -34,14 +37,17 @@ public class SweetPotato {
 	private int fragmentLength;
 	private boolean prettyPrint;
 	private List<FrequencyArray> seedHaplotypes = new ArrayList<FrequencyArray>();
-	private PriorityQueue<FrequencyArrayPair> faPairs = new PriorityQueue<FrequencyArrayPair>(new Comparator<FrequencyArrayPair>() {
-		@Override
-		public int compare(FrequencyArrayPair fap1, FrequencyArrayPair fap2) {
-			return -Double.compare(fap1.getScore(), fap2.getScore());
-		}
-	});
+	private static PriorityBlockingQueue<FrequencyArrayPair> faPairs = new PriorityBlockingQueue<FrequencyArrayPair>(
+			11, new Comparator<FrequencyArrayPair>() {
+				@Override
+				public int compare(FrequencyArrayPair fap1,
+						FrequencyArrayPair fap2) {
+					return -Double.compare(fap1.getScore(), fap2.getScore());
+				}
+			}); // Use default initial size
 
-	public SweetPotato(Set<Fragment> fragments, int k, double alpha, int beta, int seedLength, int fragmentLength, boolean prettyPrint) {
+	public SweetPotato(Set<Fragment> fragments, int k, double alpha, int beta,
+			int seedLength, int fragmentLength, boolean prettyPrint) {
 		this.fragments = fragments;
 		// Number of keys
 		this.numFragments = fragments.size();
@@ -63,56 +69,25 @@ public class SweetPotato {
 		// Save formatting parameters
 		this.prettyPrint = prettyPrint;
 	}
-	
+
 	/**
-	 * This method finds the best k seeds that are believed to come from different 
-	 * haplotypes in terms of the average number of supporting fragments.
-	 * @param numSeedHaplotypes The number of seed haplotypes should be passed for efficiency.
-	 * @return The starting index of this.seedHaplotypes for which the next k seeds
-	 * have the largest average number of supporting fragments.
+	 * This method initializes the best initial merges with which to initialize
+	 * each Merger thread.
+	 * 
+	 * @return An array of FrequencyArrayPairs of length exactly k; each element
+	 *         corresponds to an initial merge that is believed to be the best
+	 *         for that particular haplotype.
 	 */
-	private int bestRangeHelper(int numSeedHaplotypes) {
-		double bestAverage = 0.0;
-		int bestStart = 0;
-		for (int start = 0; start < numSeedHaplotypes - this.k; start += this.k) {
-			int sum = 0;
-			for (int offset = 0; offset < this.k; offset++) {
-				sum += this.seedHaplotypes.get(start + offset).numSupportingFrags();
-			}
-			double currAverage = ((double) (sum)) / ((double) this.k);
-			if (currAverage > bestAverage) {
-				bestAverage = currAverage;
-				bestStart = start;
-			}
-		}
-		return bestStart;
-	}
-	
-	/**
-	 * This method initializes the best initial merges with which to initialize each Merger thread.
-	 * @return An array of FrequencyArrayPairs of length exactly k; each element corresponds to
-	 * an initial merge that is believed to be the best for that particular haplotype.
-	 */
-	private FrequencyArrayPair[] initializeBestMerges() {
-		// Initialize the return array
-		FrequencyArrayPair[] results = new FrequencyArrayPair[this.k];
+	private void initializeBestMerges() {
 		// Save current number of seeds for efficiency
 		int numSeedHaplotypes = this.seedHaplotypes.size();
-		// Grab best k seeds that are believed to come from different haplotypes
-		FrequencyArray[] bestKSeeds = new FrequencyArray[this.k];
-		int start = this.bestRangeHelper(numSeedHaplotypes);
-		for (int i = 0; i < this.k; i++) {
-			bestKSeeds[i] = this.seedHaplotypes.get(start + i);
-		}
-		for (int i = 0; i < bestKSeeds.length; i++) {
-			FrequencyArray fa1 = bestKSeeds[i];
+		// Calculate all seedHaplotype pairs
+		for (int i = 0; i < numSeedHaplotypes - 1; i++) {
+			FrequencyArray fa1 = this.seedHaplotypes.get(i);
 			double fa1Size = fa1.numSupportingFrags();
 			Set<Fragment> fa1Frags = fa1.getFrags();
-			// Calculate best merge with other FrequencyArrays
-			for (int j = 0; j < numSeedHaplotypes; j++) {
-				if (j >= start && j < start + this.k) {
-					continue;
-				}
+			// Create all FrequencyArray pairs
+			for (int j = i + 1; j < numSeedHaplotypes; j++) {
 				FrequencyArray fa2 = this.seedHaplotypes.get(j);
 				double fa2Size = fa2.numSupportingFrags();
 				// We do not have reason to believe that either
@@ -123,56 +98,122 @@ public class SweetPotato {
 				// Use Jaccard index
 				double currIndex = intersectionSize
 						/ (fa1Size + fa2Size - intersectionSize);
+				// Only add if the intersection size is greater than zero;
+				// this guarantees that the merge step will execute as expected
 				if (intersectionSize > 0) {
-					this.faPairs.add(new FrequencyArrayPair(fa1, fa2, currIndex));
+					faPairs
+							.add(new FrequencyArrayPair(fa1, fa2, currIndex));
 				}
 			}
-			// Take the best merge determined by score
-			results[i] = this.faPairs.poll();
-			// Clear the priority queue for the next iteration
-			this.faPairs.clear();
-		}
-		// Check if results contains null
-		boolean hasNull = false;
-		for (int i = 0; i < results.length; i++) {
-			if (results[i] == null) {
-				hasNull = true;
-				break;
-			}
-		}
-		// Return appropriately
-		if (hasNull) {
-			return null;
-		} else{
-			return results;
 		}
 	}
-	
-	public void phaseParallel() {
+
+	/*
+	 * public void phaseParallel() { // Determine seeds
+	 * System.err.println("Seeding"); this.seed(new int[this.seedLength],
+	 * fragmentLength, 0); // Find the best initial merges
+	 * System.err.println("Pairing"); this.initializeBestMerges(); // Merge
+	 * best-guesses for seeds in parallel System.err.println("Merging");
+	 * Thread[] threads = new Thread[this.k]; // Start threads for (int i = 0; i
+	 * < this.k; i++) { threads[i] = new Thread(new Merger(this.seedHaplotypes,
+	 * bestMerges[i], this.numSNP, this.prettyPrint)); threads[i].start(); } //
+	 * Wait for them to finish for (Thread t : threads) { try { t.join(); }
+	 * catch (InterruptedException e) {
+	 * System.err.println("One of the Merger threads was interrupted."); } } //
+	 * Indicate that phasing finished successfully!
+	 * System.err.println("Finished phasing"); }
+	 */
+
+	public void phaseSerial() {
 		// Determine seeds
 		System.err.println("Seeding");
-		this.seed(new int[this.seedLength], fragmentLength, 0);
+		this.seed(new int[this.seedLength], this.fragmentLength, 0);
+		// Remove conflicting fragments
+		//this.seedHaplotypes = FrequencyArray.removeConflictingFragments(this.seedHaplotypes);
 		// Find the best initial merges
 		System.err.println("Pairing");
-		FrequencyArrayPair[] bestMerges = this.initializeBestMerges();
+		this.initializeBestMerges();
 		// Merge best-guesses for seeds in parallel
 		System.err.println("Merging");
-		Thread[] threads = new Thread[this.k];
-		// Start threads
-		for (int i = 0; i < this.k; i++) {
-			threads[i] = new Thread(new Merger(this.seedHaplotypes, bestMerges[i], this.numSNP, this.prettyPrint));
-			threads[i].start();
-		}
-		// Wait for them to finish
-		for (Thread t : threads) {
-			try {
-				t.join();
-			} catch (InterruptedException e) {
-				System.err.println("One of the Merger threads was interrupted.");
+		Collection<FrequencyArrayPair> toRemove = new HashSet<FrequencyArrayPair>();
+		// Parallelize for-loops
+		ExecutorService executorService = Executors.newWorkStealingPool();
+		while (!faPairs.isEmpty()) {
+			System.err.println(faPairs.size());
+			FrequencyArrayPair bestMerge = faPairs.poll();
+			FrequencyArray fa1 = bestMerge.getFirst();
+			FrequencyArray fa2 = bestMerge.getSecond();
+			FrequencyArray merge = FrequencyArray.merge(fa1, fa2);
+			if (merge != null) {
+				// Merge was successful, so update seedHaplotypes
+				this.seedHaplotypes.remove(fa1);
+				this.seedHaplotypes.remove(fa2);
+				// Update only the pairs that could have changed
+				// Remove all FrequencyArrayPairs that were involved in merge
+				for (FrequencyArrayPair fap : faPairs) {
+					if (fap.contains(fa1) || fap.contains(fa2)) {
+						toRemove.add(fap);
+					}
+				}
+				faPairs.removeAll(toRemove);
+				// Now, add all FrequencyArrayPairs
+				Set<Fragment> mergedFrags = merge.getFrags();
+				double mergedFragsSize = mergedFrags.size();
+				for (FrequencyArray fa : this.seedHaplotypes) {
+					executorService.submit(new Runnable() {
+						@Override
+						public void run() {
+							Set<Fragment> currFrags = fa.getFrags();
+							double currFragsSize = currFrags.size();
+							double intersectionSize;
+							if (mergedFragsSize <= currFragsSize) {
+								intersectionSize = Sets
+										.intersection(mergedFrags, currFrags)
+										.size();
+							} else {
+								// currFragsSize < mergedFragsSize
+								intersectionSize = Sets
+										.intersection(currFrags, mergedFrags)
+										.size();
+							}
+							// If intersection size is zero, merge will always fail, so do not add!
+							if (intersectionSize > 0) {
+								// Intersection size is zero, but set score to Jaccard index
+								faPairs.add(new FrequencyArrayPair(merge,
+										fa,
+										intersectionSize / (currFragsSize
+												+ mergedFragsSize
+												- intersectionSize)));
+							}
+						}
+					});
+				}
+				// Add merge to seedHaplotypes
+				this.seedHaplotypes.add(merge);
+				// Clear collection
+				toRemove.clear();
 			}
 		}
-		// Indicate that phasing finished successfully!
-		System.err.println("Finished phasing");
+		// Do not forget to shutdown the executor service
+		executorService.shutdown();
+		// Sort by SADF to print in convenient order
+		Collections.sort(this.seedHaplotypes,
+				new Comparator<FrequencyArray>() {
+			public int compare(FrequencyArray fa1,
+					FrequencyArray fa2) {
+				//return -Integer.compare(fa1.length(), fa2.length());
+				return -FrequencyArray.compareFrequencyArrays2(fa1, fa2);
+			}
+		});
+		// Keep track of unique consensuses
+		HashSet<String> uniqueConsensuses = new HashSet<String>();
+		for (FrequencyArray fa : this.seedHaplotypes) {
+			String currString = (!this.prettyPrint) ? fa.consensus().print() : fa.consensus().prettyPrint();
+			if (!uniqueConsensuses.contains(currString)) {
+				System.out.printf("%s\n", currString);
+				uniqueConsensuses.add(currString);
+			}
+		}
 	}
 
 	private static class ValueComparator implements Comparator<String> {
@@ -194,19 +235,23 @@ public class SweetPotato {
 			}
 		}
 	}
-	
+
 	private boolean isMatch(String seed, int[] indices, Fragment f) {
 		for (int i = 0; i < indices.length; i++) {
-			if (!(indices[i] >= f.startIndex() && indices[i] <= f.endIndex() && f.toString().charAt(indices[i] - f.startIndex()) == seed.charAt(i))) {
+			if (!(indices[i] >= f.startIndex() && indices[i] <= f.endIndex()
+					&& f.toString().charAt(indices[i] - f.startIndex()) == seed
+							.charAt(i))) {
 				return false;
 			}
 		}
 		return true;
 	}
-	
+
 	private boolean isValid(int[] indices, Fragment f) {
 		for (int i = 0; i < indices.length; i++) {
-			if (!(indices[i] >= f.startIndex() && indices[i] <= f.endIndex() && f.toString().charAt(indices[i] - f.startIndex()) != '-')) {
+			if (!(indices[i] >= f.startIndex() && indices[i] <= f.endIndex()
+					&& f.toString()
+							.charAt(indices[i] - f.startIndex()) != '-')) {
 				return false;
 			}
 		}
@@ -214,10 +259,12 @@ public class SweetPotato {
 	}
 
 	private TreeMap<String, Integer> seedFrequency(int[] indices) {
-		HashMap<String, Integer> seedFrequencies = new HashMap<String, Integer>(indices.length);
+		HashMap<String, Integer> seedFrequencies = new HashMap<String, Integer>(
+				indices.length);
 		for (Fragment f : this.fragments) {
 			if (this.isValid(indices, f)) {
-				// Seed SNP sites are valid for current fragment, so add if unique
+				// Seed SNP sites are valid for current fragment, so add if
+				// unique
 				StringBuilder sb = new StringBuilder(indices.length);
 				for (int i = 0; i < indices.length; i++) {
 					sb.append(f.toString().charAt(indices[i] - f.startIndex()));
@@ -228,26 +275,31 @@ public class SweetPotato {
 					seedFrequencies.put(seed, f.frequency());
 				} else {
 					// CONTAINS seed, so increment its frequency
-					seedFrequencies.put(seed, seedFrequencies.get(seed) + f.frequency());
+					seedFrequencies.put(seed,
+							seedFrequencies.get(seed) + f.frequency());
 				}
 			}
 		}
-		TreeMap<String, Integer> sortedSeedFrequencies = new TreeMap<String, Integer>(new ValueComparator(seedFrequencies));
+		TreeMap<String, Integer> sortedSeedFrequencies = new TreeMap<String, Integer>(
+				new ValueComparator(seedFrequencies));
 		sortedSeedFrequencies.putAll(seedFrequencies);
 		return sortedSeedFrequencies;
 	}
-	
+
 	private void doSeed(int[] indices) {
 		TreeMap<String, Integer> seedFrequency = this.seedFrequency(indices);
 		if (seedFrequency.size() >= this.k) {
-			Set<FrequencyArray> currSeedGroup = new HashSet<FrequencyArray>(this.k);
+			Set<FrequencyArray> currSeedGroup = new HashSet<FrequencyArray>(
+					this.k);
 			int size = 0;
 			for (int i = 0; i < this.k; i++) {
 				FrequencyArray fa = new FrequencyArray(this.numSNP, this.tag);
 				// For top k (already sorted) find consensus
-				Map.Entry<String, Integer> currEntry = seedFrequency.pollFirstEntry();
+				Map.Entry<String, Integer> currEntry = seedFrequency
+						.pollFirstEntry();
 				String currSeed = currEntry.getKey();
-				Set<Fragment> currSupport = this.supportingFragments(currSeed, indices);
+				Set<Fragment> currSupport = this.supportingFragments(currSeed,
+						indices);
 				fa.addFragment(currSupport);
 				size += currSupport.size();
 				currSeedGroup.add(fa);
@@ -256,7 +308,8 @@ public class SweetPotato {
 			Set<FrequencyArray> result = currSeedGroup;
 			while (true) {
 				// Twist until we cannot twist anymore (size does not change)
-				Set<FrequencyArray> result2 = this.twist(result, this.tag, size);
+				Set<FrequencyArray> result2 = this.twist(result, this.tag,
+						size);
 				if (result2 == null) {
 					// Twisting failed
 					return;
@@ -272,16 +325,18 @@ public class SweetPotato {
 			this.tag++;
 		}
 	}
-	
-	private Set<FrequencyArray> twist(Set<FrequencyArray> fas, int tag, int size) {
-		// Extract all supporting fragments from current seed group 
+
+	private Set<FrequencyArray> twist(Set<FrequencyArray> fas, int tag,
+			int size) {
+		// Extract all supporting fragments from current seed group
 		Set<Fragment> supportingFrags = new HashSet<Fragment>(size + size / 2);
 		for (FrequencyArray fa : fas) {
 			supportingFrags.addAll(fa.getFrags());
 		}
-		
+
 		ArrayList<Fragment> consensuses = new ArrayList<Fragment>(this.k);
-		ArrayList<Set<Fragment>> fasNewRaw = new ArrayList<Set<Fragment>>(this.k);
+		ArrayList<Set<Fragment>> fasNewRaw = new ArrayList<Set<Fragment>>(
+				this.k);
 		// Initialization step
 		for (int i = 0; i < this.k; i++) {
 			fasNewRaw.add(new HashSet<Fragment>());
@@ -290,31 +345,40 @@ public class SweetPotato {
 		for (FrequencyArray fa : fas) {
 			consensuses.add(fa.consensus());
 		}
-		TreeMultiset<Map.Entry<Integer, Integer>> scores = TreeMultiset.create(Map.Entry.comparingByKey());
+		TreeMultiset<Map.Entry<Integer, Integer>> scores = TreeMultiset
+				.create(Map.Entry.comparingByKey());
 		for (Fragment f : supportingFrags) {
 			for (int i = 0; i < this.k; i++) {
 				int score = consensuses.get(i).similarTo(f);
-				scores.add(new AbstractMap.SimpleImmutableEntry<Integer, Integer>(score, i));
+				scores.add(
+						new AbstractMap.SimpleImmutableEntry<Integer, Integer>(
+								score, i));
 			}
-			Multiset.Entry<Map.Entry<Integer, Integer>> highScore = scores.lastEntry();
-			if (highScore.getCount() == 1 && highScore.getElement().getKey() >= f.length() - this.beta) {
+			Multiset.Entry<Map.Entry<Integer, Integer>> highScore = scores
+					.lastEntry();
+			if (highScore.getCount() == 1 && highScore.getElement()
+					.getKey() >= f.length() - this.beta) {
 				// DEFAULT: f.length() - 1
-				// The membership of this fragment is unambiguous because it matches 1 of the consensus
-				// haplotypes and there are either no errors or 1 error (when using magic number 8).
+				// The membership of this fragment is unambiguous because it
+				// matches 1 of the consensus
+				// haplotypes and there are either no errors or 1 error (when
+				// using magic number 8).
 				fasNewRaw.get(highScore.getElement().getValue()).add(f);
 			}
 			scores.clear();
 		}
 		// Save for efficiency
-		double cutoff = ((double)(supportingFrags.size()) / (this.alpha * this.k));
+		double cutoff = ((double) (supportingFrags.size())
+				/ (this.alpha * this.k));
 		for (int i = 0; i < this.k; i++) {
 			if (fasNewRaw.get(i).size() <= cutoff) {
-				// If one of the seeds does not have "enough" supporting fragments
+				// If one of the seeds does not have "enough" supporting
+				// fragments
 				// Or... strictly less than k partitions
 				return null;
 			}
 		}
-		
+
 		Set<FrequencyArray> fasNew = new HashSet<FrequencyArray>();
 		for (int i = 0; i < this.k; i++) {
 			FrequencyArray fa = new FrequencyArray(this.numSNP, tag);
@@ -323,21 +387,22 @@ public class SweetPotato {
 		}
 		return fasNew;
 	}
-	
+
 	private void seed(int[] indices, int limit, int level) {
 		if (level == indices.length) {
 			this.doSeed(indices);
 		} else {
 			int start = (level == 0) ? 0 : indices[level - 1] + 1;
 			for (indices[level] = start; indices[level] < this.numSNP; indices[level]++) {
-				if (level == indices.length - 1 && indices[indices.length - 1] - indices[0] >= limit) {
+				if (level == indices.length - 1
+						&& indices[indices.length - 1] - indices[0] >= limit) {
 					break;
 				}
 				seed(indices, limit, level + 1);
-			} 
+			}
 		}
 	}
-	
+
 	private Set<Fragment> supportingFragments(String seed, int[] indices) {
 		HashSet<Fragment> supportingFragments = new HashSet<Fragment>();
 		for (Fragment f : this.fragments) {
