@@ -118,6 +118,8 @@ public class FrequencyArray {
 	
 	/**
 	 * This method calculates the MEC score of the supporting fragments efficiently.
+	 * This only works for reasonable results because it is assumed that the majority
+	 * is correct.
 	 * @return The MEC score of the supporting fragments.
 	 */
 	public int mec() {

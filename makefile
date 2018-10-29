@@ -2,7 +2,7 @@
 JC = javac
 JVM = java
 MAIN = Tester
-JFLAGS = -Xlint:all -g -d bin
+JFLAGS = -Xlint:all -d bin
 CP = -cp "/Users/gbotev/Documents/GitHub Repositories/haplotype-phasing/bin:/Users/gbotev/Documents/GitHub Repositories/haplotype-phasing/external_jars/guava-23.0.jar"
 SOURCEPATH = src/*.java
 OBJECTPATH = bin/*.class

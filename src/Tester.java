@@ -25,31 +25,19 @@ public class Tester {
 			int seedLength = Integer.parseInt(args[4]);
 			int fragmentLength = Integer.parseInt(args[5]);
 			boolean prettyPrint = Boolean.parseBoolean(args[6]);
+			boolean inclusiveSeeding = Boolean.parseBoolean(args[7]);
 			// Run phaser
 			ReadNewSequencesFromFile(filename);
-			//ProcessShortFragMatrixParallel(k, alpha, beta, seedLength, fragmentLength, prettyPrint);
-			ProcessShortFragMatrixSerial(k, alpha, beta, seedLength, fragmentLength, prettyPrint);
+			ProcessShortFragMatrixSerial(k, alpha, beta, seedLength, fragmentLength, prettyPrint, inclusiveSeeding);
 		} catch (Exception e) {
 			System.err.println("Command-line arguments were not entered properly.");
 		}
 	}
 	
-	/*
-	private static void ProcessShortFragMatrixParallel(int k, double alpha, int beta, int seedLength, int numFragments, boolean prettyPrint) {
-		System.err.println("Sweet Potato Solver Parallel");
-		SweetPotato potatoSolver = new SweetPotato(fragments, k, alpha, beta, seedLength, numFragments, prettyPrint);
-		long startTime = System.nanoTime();
-		potatoSolver.phaseParallel();
-		long endTime = System.nanoTime();
-		// Calculate the duration in microseconds
-		long duration = (endTime - startTime) / 1000;
-		System.err.printf("Time: %d µs\nTime: %d ms\nTime: %d sec\n\n", duration, duration / 1000, duration / 1000000);
-	}
-	*/
-	
-	private static void ProcessShortFragMatrixSerial(int k, double alpha, int beta, int seedLength, int numFragments, boolean prettyPrint) {
-		System.err.println("Sweet Potato Solver Serial");
-		SweetPotato potatoSolver = new SweetPotato(fragments, k, alpha, beta, seedLength, numFragments, prettyPrint);
+	private static void ProcessShortFragMatrixSerial(int k, double alpha, int beta, int seedLength, int numFragments, boolean prettyPrint,
+			boolean inclusiveSeeding) {
+		System.err.println("Starting serial solver...");
+		SweetPotato potatoSolver = new SweetPotato(fragments, k, alpha, beta, seedLength, numFragments, prettyPrint, inclusiveSeeding);
 		long startTime = System.nanoTime();
 		potatoSolver.phaseSerial();
 		long endTime = System.nanoTime();
