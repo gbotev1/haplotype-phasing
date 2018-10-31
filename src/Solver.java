@@ -18,14 +18,12 @@ import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultiset;
 
 /**
- * This class implements a phasing algorithm inspired by the sweet potato paper
- * for k-ploid genomes.
+ * This class implements a heuristic phasing algorithm for k-ploid genomes.
  * 
- * @author gbotev
+ * @author Georgie Botev
  */
-public class SweetPotato {
+public class Solver {
 
-	private int numThreads = 16;
 	private int tag = 0;
 	private Set<Fragment> fragments;
 	private int numFragments;
@@ -37,17 +35,11 @@ public class SweetPotato {
 	private int fragmentLength;
 	private boolean prettyPrint;
 	private boolean inclusiveSeeding;
-	private static List<FrequencyArray> seedHaplotypes = new ArrayList<FrequencyArray>();
-	private static PriorityBlockingQueue<FrequencyArrayPair> faPairs = new PriorityBlockingQueue<FrequencyArrayPair>(
-			11, new Comparator<FrequencyArrayPair>() {
-				@Override
-				public int compare(FrequencyArrayPair fap1,
-						FrequencyArrayPair fap2) {
-					return -Double.compare(fap1.getScore(), fap2.getScore());
-				}
-			}); // Use default initial size
+	private List<FrequencyArray> seedHaplotypes = new ArrayList<FrequencyArray>();
+	// Use default initial size
+	private static PriorityBlockingQueue<FIFOFrequencyArrayPair> faPairs = new PriorityBlockingQueue<FIFOFrequencyArrayPair>(11);
 
-	public SweetPotato(Set<Fragment> fragments, int k, double alpha, int beta,
+	public Solver(Set<Fragment> fragments, int k, double alpha, int beta,
 			int seedLength, int fragmentLength, boolean prettyPrint,
 			boolean inclusiveSeeding) {
 		this.fragments = fragments;
@@ -78,18 +70,16 @@ public class SweetPotato {
 	 * This method initializes the PriorityQueue with all of the initial pairs.
 	 */
 	private void initializeBestMerges() {
-		// Parallelize for-loops
-		ExecutorService executorService = Executors.newWorkStealingPool();
 		// Save current number of seeds for efficiency
-		int numSeedHaplotypes = seedHaplotypes.size();
+		int numSeedHaplotypes = this.seedHaplotypes.size();
 		// Calculate all seedHaplotype pairs
 		for (int i = 0; i < numSeedHaplotypes - 1; i++) {
-			FrequencyArray fa1 = seedHaplotypes.get(i);
+			FrequencyArray fa1 = this.seedHaplotypes.get(i);
 			double fa1Size = fa1.numSupportingFrags();
 			Set<Fragment> fa1Frags = fa1.getFrags();
 			// Create all FrequencyArray pairs
 			for (int j = i + 1; j < numSeedHaplotypes; j++) {
-				FrequencyArray fa2 = seedHaplotypes.get(j);
+				FrequencyArray fa2 = this.seedHaplotypes.get(j);
 				double fa2Size = fa2.numSupportingFrags();
 				// We do not have reason to believe that either
 				// fa1 or fa2 will be smaller in size, so pass in
@@ -102,12 +92,10 @@ public class SweetPotato {
 				// Only add if the intersection size is greater than zero;
 				// this guarantees that the merge step will execute as expected
 				if (intersectionSize > 0) {
-					faPairs.add(new FrequencyArrayPair(fa1, fa2, currIndex));
+					faPairs.add(new FIFOFrequencyArrayPair(new FrequencyArrayPair(fa1, fa2, currIndex)));
 				}
 			}
 		}
-		// Do not forget to shutdown the executor service
-		executorService.shutdown();
 	}
 
 	public void phaseSerial() {
@@ -122,33 +110,35 @@ public class SweetPotato {
 		this.initializeBestMerges();
 		// Merge best-guesses for seeds in parallel
 		System.err.println("Merging");
-		Collection<FrequencyArrayPair> toRemove = new HashSet<FrequencyArrayPair>();
+		Collection<FIFOFrequencyArrayPair> toRemove = new HashSet<FIFOFrequencyArrayPair>();
 		// Parallelize for-loops
 		ExecutorService executorService = Executors.newWorkStealingPool();
 		// Print the starting number of pairs
 		System.err.printf("Starting number of pairs: %d\n", faPairs.size());
 		while (!faPairs.isEmpty()) {
 			System.err.println(faPairs.size());
-			FrequencyArrayPair bestMerge = faPairs.poll();
+			FrequencyArrayPair bestMerge = faPairs.poll().getFrequencyArrayPair();
 			FrequencyArray fa1 = bestMerge.getFirst();
 			FrequencyArray fa2 = bestMerge.getSecond();
 			FrequencyArray merge = FrequencyArray.merge(fa1, fa2);
 			if (merge != null) {
 				// Merge was successful, so update seedHaplotypes
-				seedHaplotypes.remove(fa1);
-				seedHaplotypes.remove(fa2);
+				this.seedHaplotypes.remove(fa1);
+				this.seedHaplotypes.remove(fa2);
 				// Update only the pairs that could have changed
 				// Remove all FrequencyArrayPairs that were involved in merge
-				for (FrequencyArrayPair fap : faPairs) {
+				for (FIFOFrequencyArrayPair FIFOfap : faPairs) {
+					// Extract FrequencyArrayPair from FIFOFrequencyArrayPair
+					FrequencyArrayPair fap = FIFOfap.getFrequencyArrayPair();
 					if (fap.contains(fa1) || fap.contains(fa2)) {
-						toRemove.add(fap);
+						toRemove.add(new FIFOFrequencyArrayPair(fap));
 					}
 				}
 				faPairs.removeAll(toRemove);
 				// Now, add all FrequencyArrayPairs
 				Set<Fragment> mergedFrags = merge.getFrags();
 				double mergedFragsSize = mergedFrags.size();
-				for (FrequencyArray fa : seedHaplotypes) {
+				for (FrequencyArray fa : this.seedHaplotypes) {
 					executorService.submit(new Runnable() {
 						@Override
 						public void run() {
@@ -170,16 +160,17 @@ public class SweetPotato {
 							if (intersectionSize > 0) {
 								// Intersection size is zero, but set score to
 								// Jaccard index
-								faPairs.add(new FrequencyArrayPair(merge, fa,
-										intersectionSize / (currFragsSize
+								faPairs.add(new FIFOFrequencyArrayPair(new FrequencyArrayPair(merge, 
+										fa,
+										intersectionSize / (currFragsSize 
 												+ mergedFragsSize
-												- intersectionSize)));
+												- intersectionSize))));
 							}
 						}
 					});
 				}
 				// Add merge to seedHaplotypes
-				seedHaplotypes.add(merge);
+				this.seedHaplotypes.add(merge);
 				// Clear collection
 				toRemove.clear();
 			}
@@ -187,22 +178,35 @@ public class SweetPotato {
 		// Do not forget to shutdown the executor service
 		executorService.shutdown();
 		// Sort by SADF to print in convenient order
-		Collections.sort(seedHaplotypes, new Comparator<FrequencyArray>() {
+		Collections.sort(this.seedHaplotypes, new Comparator<FrequencyArray>() {
 			public int compare(FrequencyArray fa1, FrequencyArray fa2) {
 				// return -Integer.compare(fa1.length(), fa2.length());
 				return -FrequencyArray.compareFrequencyArrays2(fa1, fa2);
 			}
 		});
-		// Keep track of unique consensuses
-		HashSet<String> uniqueConsensuses = new HashSet<String>();
-		for (FrequencyArray fa : seedHaplotypes) {
+		// Calculate size of seedHaplotypes for efficiency
+		int numSeedHaplotypes = this.seedHaplotypes.size();
+		// Keep track of indices of redundant FrequencyArrays to delete later!
+		HashSet<FrequencyArray> redundantFAs = new HashSet<FrequencyArray>();
+		// Combine all FrequencyArrays which are redundant; cycle through all pairs
+		for (int i = 0; i < numSeedHaplotypes - 1; i++) {
+			for (int j = i + 1; j < numSeedHaplotypes; j++) {
+				FrequencyArray result = FrequencyArray.combine(this.seedHaplotypes.get(i), 
+						this.seedHaplotypes.get(j));
+				if (result != null) {
+					// Redundancy discovered!
+					redundantFAs.add(result);
+				}
+			}
+		}
+		// Remove all redundant FrequencyArrays
+		this.seedHaplotypes.removeAll(redundantFAs);
+		// Print out all haplotypes
+		for (FrequencyArray fa : this.seedHaplotypes) {
 			String currString = (!this.prettyPrint)
 					? fa.consensus().print()
 					: fa.consensus().prettyPrint();
-			if (!uniqueConsensuses.contains(currString)) {
-				System.out.printf("%s\n", currString);
-				uniqueConsensuses.add(currString);
-			}
+			System.out.printf("%s\n", currString);
 		}
 	}
 
@@ -279,7 +283,7 @@ public class SweetPotato {
 	private void doSeed(int[] indices) {
 		TreeMap<String, Integer> seedFrequency = this.seedFrequency(indices);
 		// Make sure there is enough variability at this seed site
-		int variabilityThreshold = (this.inclusiveSeeding) ? this.k - 1: this.k;
+		int variabilityThreshold = this.inclusiveSeeding ? this.k - 1: this.k;
 		if (seedFrequency.size() > variabilityThreshold) {
 			Set<FrequencyArray> currSeedGroup = new HashSet<FrequencyArray>(
 					this.k);
@@ -313,7 +317,7 @@ public class SweetPotato {
 				}
 				result = result2;
 			}
-			seedHaplotypes.addAll(result);
+			this.seedHaplotypes.addAll(result);
 			this.tag++;
 		}
 	}

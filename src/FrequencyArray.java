@@ -4,13 +4,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import com.google.common.collect.Sets;
-
 /**
  * This class efficiently keeps track of the frequencies at each SNP site.
  * 
- * @author gbotev
- *
+ * @author Georgie Botev
  */
 public class FrequencyArray {
 
@@ -372,6 +369,70 @@ public class FrequencyArray {
 			}
 		}
 		return new Fragment(min, sb.toString());
+	}
+	
+	/**
+	 * This method determines whether either FrequencyArray's consensus is 
+	 * fully and exactly contained within the other. If it is, then it 
+	 * returns the larger FrequencyArray, else null.
+	 * 
+	 * @param fa The other FrequencyArray to test.
+	 * @return The larger FrequencyArray if successful, else null.
+	 */
+	public static FrequencyArray combine(FrequencyArray fa1, FrequencyArray fa2) {
+		// Calculate the consensuses of the two FrequencyArrays
+		Fragment consensus1 = fa1.consensus();
+		Fragment consensus2 = fa2.consensus();
+		// Precompute useful variables for efficiency
+		int start1 = consensus1.startIndex();
+		int start2 = consensus2.startIndex();
+		String frag1 = consensus1.toString();
+		String frag2 = consensus2.toString();
+		// Boolean flag to keep track of result
+		boolean areRedundant = true;
+		// Split into cases depending on which consensus is longer (if any)
+		if (consensus1.length() >= consensus2.length()) {
+			// Check if consensus2 fits within active region of consensus1
+			if (fa2.activeStart >= fa1.activeStart && fa2.activeEnd <= fa1.activeEnd) {
+				// From the above if condition, we know that we will be within bounds
+				// for the entire length of fa2
+				for (int i = 0; i < fa2.length(); i++) {
+					int currIndex = i + fa2.activeStart - fa1.activeStart;
+					if (frag2.charAt(i) != frag1.charAt(currIndex) &&
+							frag2.charAt(i) != '-' && frag1.charAt(currIndex) != '-') {
+						// There is at least one known location where they do not match
+						areRedundant = false;
+						break;
+					}
+				}
+				if (areRedundant) {
+					// Return larger FrequencyArray
+					return fa1;
+				} 
+			}
+		} else {
+			// consensus1.length() < consensus2.length()
+			// Check if consensus1 fits within active region of consensus2
+			if (fa1.activeStart >= fa2.activeStart && fa1.activeEnd <= fa2.activeEnd) {
+				// From the above if condition, we know that we will be within bounds
+				// for the entire length of fa2
+				for (int i = 0; i < fa1.length(); i++) {
+					int currIndex = i + fa1.activeStart - fa2.activeStart;
+					if (frag1.charAt(i) != frag2.charAt(currIndex) &&
+							frag1.charAt(i) != '-' && frag2.charAt(currIndex) != '-') {
+						// There is at least one known location where they do not match
+						areRedundant = false;
+						break;
+					}
+				}
+				if (areRedundant) {
+					// Return larger FrequencyArray
+					return fa2;
+				}
+			}
+		}
+		// FrequencyArrays do not overlap, so combination is not possible!
+		return null;
 	}
 	
 }

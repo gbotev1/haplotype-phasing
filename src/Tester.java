@@ -3,12 +3,11 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.TreeSet;
 
 /**
  * This class allows the user to phase k-ploid haplotypes.
  * 
- * @author gbotev
+ * @author Georgie Botev
  */
 public class Tester {
 
@@ -37,7 +36,7 @@ public class Tester {
 	private static void ProcessShortFragMatrixSerial(int k, double alpha, int beta, int seedLength, int numFragments, boolean prettyPrint,
 			boolean inclusiveSeeding) {
 		System.err.println("Starting serial solver...");
-		SweetPotato potatoSolver = new SweetPotato(fragments, k, alpha, beta, seedLength, numFragments, prettyPrint, inclusiveSeeding);
+		Solver potatoSolver = new Solver(fragments, k, alpha, beta, seedLength, numFragments, prettyPrint, inclusiveSeeding);
 		long startTime = System.nanoTime();
 		potatoSolver.phaseSerial();
 		long endTime = System.nanoTime();

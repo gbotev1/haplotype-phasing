@@ -4,8 +4,7 @@ import java.util.Objects;
  * This class contains all the properties necessary to represent a fragment
  * utilizing the short encoding.
  * 
- * @author gbotev
- *
+ * @author Georgie Botev
  */
 public class Fragment {
 
@@ -64,11 +63,6 @@ public class Fragment {
 	public String print() {
 		return String.format("%d\t%s", this.startIndex, this.fragment);
 	}
-	
-	@Override
-	public int hashCode() {
-		return Objects.hash(this.startIndex, this.fragment);
-	}
 
 	@Override
 	public boolean equals(Object o) {
@@ -89,6 +83,11 @@ public class Fragment {
 		// Check if starting index and fragment are the same
 		return Objects.equals(this.startIndex, f.startIndex)
 	            && Objects.equals(this.fragment, f.fragment);
+	}
+	
+	@Override
+	public int hashCode() {
+		return Objects.hash(this.startIndex, this.fragment);
 	}
 
 	/**

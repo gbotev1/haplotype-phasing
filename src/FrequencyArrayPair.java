@@ -4,8 +4,7 @@ import java.util.Objects;
  * This class encapsulates the notion of a pair of FrequencyArray's, including
  * useful information about the pair.
  * 
- * @author gbotev
- *
+ * @author Georgie Botev
  */
 public class FrequencyArrayPair {
 
@@ -86,19 +85,5 @@ public class FrequencyArrayPair {
 	public boolean contains(FrequencyArray fa) {
 		return fa.equals(this.fa1) || fa.equals(this.fa2);
 	}
-
-	/**
-	 * Compares the scores of the given FrequencyArrayPair's favoring higher
-	 * scores.
-	 * @param fap1 The first FrequencyArrayPair.
-	 * @param fap2 The second FrequencyArrayPair.
-	 * @return An integer indicating whether the first score is greater than
-	 *         (1), less than (-1), or equal to (0) the second score.
-	 */
-	/*
-	public static int compareTo(FrequencyArrayPair fap) {
-		return -Integer.compare(this.score, fap.score);
-	}
-	*/
 	
 }
