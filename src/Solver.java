@@ -36,6 +36,7 @@ public class Solver {
 	private int fragmentLength;
 	private boolean prettyPrint;
 	private boolean inclusiveSeeding;
+	private long seqNum = 0;
 	private List<FrequencyArray> seedHaplotypes = new ArrayList<FrequencyArray>();
 	// Use default initial size
 	private static PriorityBlockingQueue<FIFOFrequencyArrayPair> faPairs = new PriorityBlockingQueue<FIFOFrequencyArrayPair>(11);
@@ -93,7 +94,7 @@ public class Solver {
 				// Only add if the intersection size is greater than zero;
 				// this guarantees that the merge step will execute as expected
 				if (intersectionSize > 0) {
-					faPairs.add(new FIFOFrequencyArrayPair(new FrequencyArrayPair(fa1, fa2, currIndex)));
+					faPairs.add(new FIFOFrequencyArrayPair(new FrequencyArrayPair(fa1, fa2, currIndex), seqNum++));
 				}
 			}
 		}
@@ -113,7 +114,7 @@ public class Solver {
 		System.err.println("Merging");
 		Collection<FIFOFrequencyArrayPair> toRemove = new HashSet<FIFOFrequencyArrayPair>();
 		// Parallelize for-loops
-		ExecutorService executorService = Executors.newWorkStealingPool();
+		ExecutorService executorService = null;
 		// Print the starting number of pairs
 		System.err.printf("Starting number of pairs: %d\n", faPairs.size());
 		while (!faPairs.isEmpty()) {
@@ -132,7 +133,10 @@ public class Solver {
 					// Extract FrequencyArrayPair from FIFOFrequencyArrayPair
 					FrequencyArrayPair fap = FIFOfap.getFrequencyArrayPair();
 					if (fap.contains(fa1) || fap.contains(fa2)) {
-						toRemove.add(new FIFOFrequencyArrayPair(fap));
+						// Sequence number does not matter here because we have
+						// overridden the equals method and are only comparing
+						// the underlying FrequencyArrayPair
+						toRemove.add(new FIFOFrequencyArrayPair(fap, -1));
 					}
 				}
 				faPairs.removeAll(toRemove);
@@ -167,7 +171,8 @@ public class Solver {
 										fa,
 										intersectionSize / (currFragsSize 
 												+ mergedFragsSize
-												- intersectionSize))));
+												- intersectionSize)),
+										seqNum++));
 							}
 						}
 					});
@@ -186,8 +191,6 @@ public class Solver {
 				toRemove.clear();
 			}
 		}
-		// Do not forget to shutdown the executor service!
-		executorService.shutdown();
 		// Sort by SADF to print in convenient order
 		Collections.sort(this.seedHaplotypes, new Comparator<FrequencyArray>() {
 			public int compare(FrequencyArray fa1, FrequencyArray fa2) {
@@ -195,22 +198,20 @@ public class Solver {
 				return -FrequencyArray.compareFrequencyArrays2(fa1, fa2);
 			}
 		});
-		// Calculate size of seedHaplotypes for efficiency
-		int numSeedHaplotypes = this.seedHaplotypes.size();
-		// Keep track of indices of redundant FrequencyArrays to delete later!
-		HashSet<FrequencyArray> redundantFAs = new HashSet<FrequencyArray>();
+		// Precompute size for efficiency
+		int seedHaplotypesSize = this.seedHaplotypes.size();
 		// Combine all FrequencyArrays which are redundant; cycle through all pairs
-		for (int i = 0; i < numSeedHaplotypes - 1; i++) {
-			for (int j = i + 1; j < numSeedHaplotypes; j++) {
-				FrequencyArray result = FrequencyArray.combine(this.seedHaplotypes.get(i), 
+		HashSet<FrequencyArray> redundantFAs = new HashSet<FrequencyArray>();
+		for (int i = 0; i < seedHaplotypesSize - 1; i++) {
+			for (int j = i + 1; j < seedHaplotypesSize; j++) {
+				FrequencyArray result = FrequencyArray.combine(
+						this.seedHaplotypes.get(i),
 						this.seedHaplotypes.get(j));
 				if (result != null) {
-					// Redundancy discovered!
 					redundantFAs.add(result);
 				}
 			}
 		}
-		// Remove all redundant FrequencyArrays
 		this.seedHaplotypes.removeAll(redundantFAs);
 		// Print out all haplotypes
 		for (FrequencyArray fa : this.seedHaplotypes) {

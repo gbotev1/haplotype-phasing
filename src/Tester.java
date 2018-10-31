@@ -26,6 +26,7 @@ public class Tester {
 			boolean prettyPrint = Boolean.parseBoolean(args[6]);
 			boolean inclusiveSeeding = Boolean.parseBoolean(args[7]);
 			// Run phaser
+			System.err.println("Reading data");
 			ReadNewSequencesFromFile(filename);
 			ProcessShortFragMatrixSerial(k, alpha, beta, seedLength, fragmentLength, prettyPrint, inclusiveSeeding);
 		} catch (Exception e) {
@@ -36,7 +37,6 @@ public class Tester {
 	
 	private static void ProcessShortFragMatrixSerial(int k, double alpha, int beta, int seedLength, int numFragments, boolean prettyPrint,
 			boolean inclusiveSeeding) {
-		System.err.println("Starting serial solver...");
 		Solver potatoSolver = new Solver(fragments, k, alpha, beta, seedLength, numFragments, prettyPrint, inclusiveSeeding);
 		long startTime = System.nanoTime();
 		potatoSolver.phaseSerial();

@@ -1,5 +1,4 @@
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This class allows FrequencyArrayPairs inserted into the faPairs in the
@@ -12,15 +11,13 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author Georgie Botev
  */
 public class FIFOFrequencyArrayPair implements Comparable<FIFOFrequencyArrayPair> {
-	// Used to keep track of order in which FrequencyArrayPairs from this class were created.
-	private static final AtomicLong seq = new AtomicLong(0);
 	// Current FrequencyArrayPair's number
 	private final long seqNum;
 	// The FrequencyArrayPair
 	private final FrequencyArrayPair fap;
 	
-	public FIFOFrequencyArrayPair(FrequencyArrayPair fap) {
-		seqNum = seq.getAndIncrement();
+	public FIFOFrequencyArrayPair(FrequencyArrayPair fap, long seqNum) {
+		this.seqNum = seqNum;
 		this.fap = fap;
 	}
 	

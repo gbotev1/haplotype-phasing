@@ -384,8 +384,6 @@ public class FrequencyArray {
 		Fragment consensus1 = fa1.consensus();
 		Fragment consensus2 = fa2.consensus();
 		// Precompute useful variables for efficiency
-		int start1 = consensus1.startIndex();
-		int start2 = consensus2.startIndex();
 		String frag1 = consensus1.toString();
 		String frag2 = consensus2.toString();
 		// Boolean flag to keep track of result
@@ -406,8 +404,8 @@ public class FrequencyArray {
 					}
 				}
 				if (areRedundant) {
-					// Return larger FrequencyArray
-					return fa1;
+					// Return smaller FrequencyArray
+					return fa2;
 				} 
 			}
 		} else {
@@ -426,8 +424,8 @@ public class FrequencyArray {
 					}
 				}
 				if (areRedundant) {
-					// Return larger FrequencyArray
-					return fa2;
+					// Return smaller FrequencyArray
+					return fa1;
 				}
 			}
 		}

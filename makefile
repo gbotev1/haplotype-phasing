@@ -5,7 +5,7 @@ MAIN = Tester
 JFLAGS = -Xlint:all -d bin
 CP = -cp "/Users/gbotev/Documents/GitHub Repositories/haplotype-phasing/bin:/Users/gbotev/Documents/GitHub Repositories/haplotype-phasing/external_jars/guava-23.0.jar"
 SOURCEPATH = src/*.java
-OBJECTPATH = bin/*.class
+OBJECTPATH = bin/*
 
 # Default compilation
 .SUFFIXES: .java .class
@@ -16,7 +16,7 @@ default: .java.class
 	@$(JC) $(JFLAGS) $(CP) $(SOURCEPATH) 
 
 clean:
-	@$(RM) $(OBJECTPATH)
+	@$(RM) -r $(OBJECTPATH)
 
 run:
 	@$(JVM) $(CP) $(MAIN) $(args)
