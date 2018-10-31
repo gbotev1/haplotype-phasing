@@ -12,6 +12,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Sets;
@@ -116,7 +117,7 @@ public class Solver {
 		// Print the starting number of pairs
 		System.err.printf("Starting number of pairs: %d\n", faPairs.size());
 		while (!faPairs.isEmpty()) {
-			System.err.println(faPairs.size());
+			//System.err.println(faPairs.size());
 			FrequencyArrayPair bestMerge = faPairs.poll().getFrequencyArrayPair();
 			FrequencyArray fa1 = bestMerge.getFirst();
 			FrequencyArray fa2 = bestMerge.getSecond();
@@ -138,6 +139,8 @@ public class Solver {
 				// Now, add all FrequencyArrayPairs
 				Set<Fragment> mergedFrags = merge.getFrags();
 				double mergedFragsSize = mergedFrags.size();
+				// Reinitialize executorService since it may have shutdown
+				executorService = Executors.newWorkStealingPool();
 				for (FrequencyArray fa : this.seedHaplotypes) {
 					executorService.submit(new Runnable() {
 						@Override
@@ -169,13 +172,21 @@ public class Solver {
 						}
 					});
 				}
+				// Set unrealistically large termination timeout!
+				try {
+					executorService.shutdown();
+					executorService.awaitTermination(1, TimeUnit.DAYS);
+				} catch (InterruptedException e) {
+					System.err.println("The executorService was interrupted while awaiting termination.");
+					System.exit(1);
+				}
 				// Add merge to seedHaplotypes
 				this.seedHaplotypes.add(merge);
 				// Clear collection
 				toRemove.clear();
 			}
 		}
-		// Do not forget to shutdown the executor service
+		// Do not forget to shutdown the executor service!
 		executorService.shutdown();
 		// Sort by SADF to print in convenient order
 		Collections.sort(this.seedHaplotypes, new Comparator<FrequencyArray>() {

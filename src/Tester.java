@@ -29,7 +29,8 @@ public class Tester {
 			ReadNewSequencesFromFile(filename);
 			ProcessShortFragMatrixSerial(k, alpha, beta, seedLength, fragmentLength, prettyPrint, inclusiveSeeding);
 		} catch (Exception e) {
-			System.err.println("Command-line arguments were not entered properly.");
+			System.err.println("Command-line arguments were not entered properly or an uncaught exception occured.");
+			e.printStackTrace(System.err);
 		}
 	}
 	
